@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 
-from cs336_basics.nn import Linear
+from cs336_basics.nn import Linear, Embedding
 import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
@@ -59,7 +59,11 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    embedding = Embedding(vocab_size, d_model, weights.device, weights.dtype)
+    state_dict = {"weight": weights}
+    embedding.load_state_dict(state_dict=state_dict)
+
+    return embedding(token_ids)
 
 
 def run_swiglu(
