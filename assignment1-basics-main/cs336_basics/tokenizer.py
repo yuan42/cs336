@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections import defaultdict
 import json
 import regex as re
 from typing import Iterable, Iterator
@@ -31,7 +30,7 @@ class Tokenizer:
         for rank, t in enumerate(self.merges):
             self.merge_map[t] = rank
         
-
+    @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None) -> "Tokenizer":
         vocab: dict[int, bytes] = {}
         with open(vocab_filepath, "r", encoding="utf-8") as f:
