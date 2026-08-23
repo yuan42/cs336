@@ -4,6 +4,7 @@ import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 
+from cs336_basics.nn import Linear
 import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
@@ -31,7 +32,12 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    linear = Linear(d_in, d_out, weights.device, weights.dtype)
+
+    state_dict = {"weight": weights}
+    linear.load_state_dict(state_dict=state_dict)
+    
+    return linear(in_features)
 
 
 def run_embedding(
