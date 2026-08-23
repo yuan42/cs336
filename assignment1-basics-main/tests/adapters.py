@@ -601,19 +601,18 @@ def run_train_bpe(
             self.tokens = tokens
             self.count = count
 
-
     class ReversePair:
-            def __init__(self, pair):
-                self.pair = pair
+        def __init__(self, pair):
+            self.pair = pair
 
-            def __lt__(self, other):
-                return self.pair > other.pair
-    
+        def __lt__(self, other):
+            return self.pair > other.pair
+
     pre_token_count: dict[tuple[bytes, ...], int] = defaultdict(int)
     special_pattern = "|".join(re.escape(token) for token in special_tokens)
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
     # to be improved with large files
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         text = f.read()
 
     chunks = re.split(special_pattern, text) if special_pattern else [text]
@@ -622,7 +621,7 @@ def run_train_bpe(
         for match in re.finditer(PAT, chunk):
             temp = tuple(bytes([b]) for b in match.group().encode("utf-8"))
             pre_token_count[temp] += 1
-        
+
     pre_token_list = [PreToken(pre_token, count) for pre_token, count in pre_token_count.items()]
 
     # init vocab with 256
@@ -632,7 +631,7 @@ def run_train_bpe(
     for token in special_tokens:
         vocab[len(vocab)] = token.encode("utf-8")
     merges: list[tuple[bytes, bytes]] = []
-                 
+
     pair_locations: dict[tuple[bytes, ...], set] = defaultdict(set)
     pair_count: dict[tuple[bytes, ...], int] = defaultdict(int)
     heap = []
@@ -640,10 +639,10 @@ def run_train_bpe(
         tokens = pre_token.tokens
         count = pre_token.count
         for i in range(len(tokens) - 1):
-            pair = (tokens[i], tokens[i+1])
+            pair = (tokens[i], tokens[i + 1])
             pair_count[pair] += count
             pair_locations[pair].add(pre_token)
-    
+
     for pair, count in pair_count.items():
         heapq.heappush(heap, (-count, ReversePair(pair)))
 
@@ -673,7 +672,7 @@ def run_train_bpe(
                 heapq.heappush(heap, (-pair_count[pair], ReversePair(pair)))
 
                 # new
-                tokens = tokens[:idx] + (merged_token,) + tokens[idx+2:]
+                tokens = tokens[:idx] + (merged_token,) + tokens[idx + 2 :]
                 if idx > 0:
                     temp = (tokens[idx - 1], tokens[idx])
                     pair_count[temp] += count
@@ -687,7 +686,7 @@ def run_train_bpe(
                 pre_token.tokens = tokens
 
                 idx += 1
-            
+
     while len(vocab) < vocab_size and heap:
         reverse_count, reverse_pair = heapq.heappop(heap)
         count = -reverse_count
