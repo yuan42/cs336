@@ -6,6 +6,12 @@ import torch
 from torch import nn
 
 
+def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+    max_values = torch.amax(x, dim=dim, keepdim=True)
+    exp_values = torch.exp(x - max_values)
+    return exp_values / torch.sum(exp_values, dim=dim, keepdim=True)
+
+
 class Linear(nn.Module):
     def __init__(
         self, in_features: int, out_features: int, device: torch.device | None = None, dtype: torch.dtype | None = None

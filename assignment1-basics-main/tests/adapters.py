@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLU
+from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLU, softmax
 from cs336_basics.transformer import RotaryPositionalEmbedding
 import numpy.typing as npt
 import torch
@@ -457,7 +457,7 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(
