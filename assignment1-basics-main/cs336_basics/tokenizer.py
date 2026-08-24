@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import json
-import regex as re
 from collections.abc import Iterable, Iterator
+
+import regex as re
 
 
 class Tokenizer:

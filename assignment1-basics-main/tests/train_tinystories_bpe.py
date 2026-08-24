@@ -1,5 +1,5 @@
-import time
 import pickle
+import time
 
 from adapters import run_train_bpe
 

@@ -1,9 +1,31 @@
 from __future__ import annotations
 
-import torch
-from torch import nn
+import math
 
-from einops import rearrange
+import torch
+from einops import einsum, rearrange
+from jaxtyping import Bool, Float
+from torch import Tensor, nn
+
+from cs336_basics.nn import softmax
+
+
+def scaled_dot_product_attention(
+    Q: Float[Tensor, " ... queries d_k"],
+    K: Float[Tensor, " ... keys d_k"],
+    V: Float[Tensor, " ... keys d_v"],
+    mask: Bool[Tensor, " ... queries keys"] | None = None,
+) -> Float[Tensor, " ... queries d_v"]:
+
+    d_k = Q.shape[-1]
+    attention_scores = einsum(
+        Q, K, "batch_size ... queries d_k, batch_size ... keys d_k -> batch_size ... queries keys"
+    ) / math.sqrt(d_k)
+    if mask is not None:
+        attention_scores = attention_scores.masked_fill(~mask, float("-inf"))
+    attention_probs = softmax(attention_scores, -1)
+
+    return attention_probs @ V
 
 
 class RotaryPositionalEmbedding(nn.Module):

@@ -4,14 +4,14 @@ import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLU, softmax
-from cs336_basics.transformer import RotaryPositionalEmbedding
 import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from cs336_basics.nn import Embedding, Linear, RMSNorm, SwiGLU, softmax
 from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.transformer import RotaryPositionalEmbedding, scaled_dot_product_attention
 
 
 def run_linear(
@@ -123,7 +123,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -616,9 +616,10 @@ def run_train_bpe(
                 Merges are ordered by order of creation.
     """
 
-    import regex as re
-    from collections import defaultdict
     import heapq
+    from collections import defaultdict
+
+    import regex as re
 
     class PreToken:
         def __init__(self, tokens: tuple[bytes, ...], count: int):

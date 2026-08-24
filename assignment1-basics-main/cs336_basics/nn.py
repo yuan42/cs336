@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import math
 
-from einops import einsum
 import torch
+from einops import einsum
 from torch import nn
 
 
