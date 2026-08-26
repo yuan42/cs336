@@ -11,7 +11,7 @@ from torch import Tensor
 
 from cs336_basics.nn import Embedding, Linear, RMSNorm, SwiGLU, softmax
 from cs336_basics.tokenizer import Tokenizer
-from cs336_basics.transformer import RotaryPositionalEmbedding, scaled_dot_product_attention
+from cs336_basics.transformer import RotaryPositionalEmbedding, scaled_dot_product_attention, MultiHeadSelfAttention
 
 
 def run_linear(
@@ -157,7 +157,19 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    multihead_self_attention = MultiHeadSelfAttention(
+        d_model, num_heads, device=q_proj_weight.device, dtype=q_proj_weight.dtype
+    )
+
+    state_dict = {
+        "q_proj.weight": q_proj_weight,
+        "k_proj.weight": k_proj_weight,
+        "v_proj.weight": v_proj_weight,
+        "o_proj.weight": o_proj_weight,
+    }
+    multihead_self_attention.load_state_dict(state_dict)
+
+    return multihead_self_attention(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -197,7 +209,23 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+
+    d_k = d_model // num_heads
+    rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len, q_proj_weight.device)
+
+    multihead_self_attention = MultiHeadSelfAttention(
+        d_model, num_heads, rope=rope, device=q_proj_weight.device, dtype=q_proj_weight.dtype
+    )
+
+    state_dict = {
+        "q_proj.weight": q_proj_weight,
+        "k_proj.weight": k_proj_weight,
+        "v_proj.weight": v_proj_weight,
+        "o_proj.weight": o_proj_weight,
+    }
+    multihead_self_attention.load_state_dict(state_dict)
+
+    return multihead_self_attention(in_features, token_positions)
 
 
 def run_rope(
