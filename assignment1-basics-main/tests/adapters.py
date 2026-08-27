@@ -16,6 +16,7 @@ from cs336_basics.transformer import (
     scaled_dot_product_attention,
     MultiHeadSelfAttention,
     TransformerBlock,
+    TransformerLM,
 )
 
 
@@ -170,7 +171,7 @@ def run_multihead_self_attention(
         "q_proj.weight": q_proj_weight,
         "k_proj.weight": k_proj_weight,
         "v_proj.weight": v_proj_weight,
-        "o_proj.weight": o_proj_weight,
+        "output_proj.weight": o_proj_weight,
     }
     multihead_self_attention.load_state_dict(state_dict)
 
@@ -226,7 +227,7 @@ def run_multihead_self_attention_with_rope(
         "q_proj.weight": q_proj_weight,
         "k_proj.weight": k_proj_weight,
         "v_proj.weight": v_proj_weight,
-        "o_proj.weight": o_proj_weight,
+        "output_proj.weight": o_proj_weight,
     }
     multihead_self_attention.load_state_dict(state_dict)
 
@@ -338,8 +339,6 @@ def run_transformer_block(
         dtype=in_features.dtype,
     )
 
-    weights["attn.o_proj.weight"] = weights["attn.output_proj.weight"]
-    del weights["attn.output_proj.weight"]
     transformer.load_state_dict(weights)
 
     return transformer(in_features)
@@ -424,7 +423,21 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+
+    transformer_lm = TransformerLM(
+        vocab_size,
+        context_length,
+        d_model,
+        num_layers,
+        num_heads,
+        d_ff,
+        rope_theta,
+        device=in_indices.device,
+        dtype=weights["token_embeddings.weight"].dtype,
+    )
+
+    transformer_lm.load_state_dict(weights)
+    return transformer_lm(in_indices)
 
 
 def run_rmsnorm(
