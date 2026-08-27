@@ -11,7 +11,12 @@ from torch import Tensor
 
 from cs336_basics.nn import Embedding, Linear, RMSNorm, SwiGLU, softmax
 from cs336_basics.tokenizer import Tokenizer
-from cs336_basics.transformer import RotaryPositionalEmbedding, scaled_dot_product_attention, MultiHeadSelfAttention
+from cs336_basics.transformer import (
+    RotaryPositionalEmbedding,
+    scaled_dot_product_attention,
+    MultiHeadSelfAttention,
+    TransformerBlock,
+)
 
 
 def run_linear(
@@ -322,7 +327,22 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+
+    transformer = TransformerBlock(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        max_seq_len=max_seq_len,
+        theta=theta,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+
+    weights["attn.o_proj.weight"] = weights["attn.output_proj.weight"]
+    del weights["attn.output_proj.weight"]
+    transformer.load_state_dict(weights)
+
+    return transformer(in_features)
 
 
 def run_transformer_lm(

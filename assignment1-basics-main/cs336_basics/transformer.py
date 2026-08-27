@@ -7,7 +7,7 @@ from einops import einsum, rearrange
 from jaxtyping import Bool, Float
 from torch import Tensor, nn
 
-from cs336_basics.nn import softmax, Linear
+from cs336_basics.nn import softmax, Linear, RMSNorm, SwiGLU
 
 
 def scaled_dot_product_attention(
@@ -101,3 +101,32 @@ class MultiHeadSelfAttention(nn.Module):
         )
 
         return self.o_proj(attention)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+        max_seq_len: int,
+        theta: float,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()
+
+        assert d_model % num_heads == 0
+        d_k = d_model // num_heads
+
+        self.ln1 = RMSNorm(d_model=d_model, device=device, dtype=dtype)
+        rope = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_len=max_seq_len, device=device)
+        self.attn = MultiHeadSelfAttention(d_model=d_model, num_heads=num_heads, rope=rope, device=device, dtype=dtype)
+        self.ln2 = RMSNorm(d_model=d_model, device=device, dtype=dtype)
+        self.ffn = SwiGLU(d_model=d_model, d_ff=d_ff, device=device, dtype=dtype)
+
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
+
+        temp = x + self.attn(self.ln1(x), token_positions)
+
+        return temp + self.ffn(self.ln2(temp))
