@@ -4,6 +4,39 @@ from typing import Optional
 import torch
 
 
+def lr_cosine_schedule(
+    it: int, max_learning_rate: float, min_learning_rate: float, warmup_iters: int, cosine_cycle_iters: int
+):
+    if it < warmup_iters:
+        return max_learning_rate * it / warmup_iters
+    elif it <= cosine_cycle_iters:
+        return (
+            min_learning_rate
+            + (max_learning_rate - min_learning_rate)
+            * (1 + math.cos((it - warmup_iters) * math.pi / (cosine_cycle_iters - warmup_iters)))
+            / 2
+        )
+    else:
+        return min_learning_rate
+
+
+def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
+    grads = [parameter.grad for parameter in parameters if parameter.grad is not None]
+
+    if not grads:
+        return
+
+    total_norm = torch.sqrt(sum(torch.sum(grad**2) for grad in grads))
+
+    if total_norm <= max_l2_norm:
+        return
+
+    eps = 1e-6
+    scale = max_l2_norm / (total_norm + eps)
+    for grad in grads:
+        grad *= scale
+
+
 class SGD(torch.optim.Optimizer):
     def __init__(self, params, lr=1e-3):
         if lr < 0:
