@@ -9,19 +9,20 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from cs336_basics.bpe import train_bpe
+from cs336_basics.checkpoint import load_checkpoint, save_checkpoint
+from cs336_basics.data import get_batch
+from cs336_basics.loss import cross_entropy
 from cs336_basics.nn import Embedding, Linear, RMSNorm, SwiGLU, softmax
+from cs336_basics.optimizer import AdamW, gradient_clipping, lr_cosine_schedule
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.transformer import (
-    RotaryPositionalEmbedding,
-    scaled_dot_product_attention,
     MultiHeadSelfAttention,
+    RotaryPositionalEmbedding,
     TransformerBlock,
     TransformerLM,
+    scaled_dot_product_attention,
 )
-from cs336_basics.loss import cross_entropy
-from cs336_basics.optimizer import AdamW, gradient_clipping, lr_cosine_schedule
-from cs336_basics.data import get_batch
-from cs336_basics.checkpoint import save_checkpoint, load_checkpoint
 
 
 def run_linear(
@@ -681,109 +682,4 @@ def run_train_bpe(
                 Merges are ordered by order of creation.
     """
 
-    import heapq
-    from collections import defaultdict
-
-    import regex as re
-
-    class PreToken:
-        def __init__(self, tokens: tuple[bytes, ...], count: int):
-            self.tokens = tokens
-            self.count = count
-
-    class ReversePair:
-        def __init__(self, pair):
-            self.pair = pair
-
-        def __lt__(self, other):
-            return self.pair > other.pair
-
-    pre_token_count: dict[tuple[bytes, ...], int] = defaultdict(int)
-    special_pattern = "|".join(re.escape(token) for token in special_tokens)
-    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    # to be improved with large files
-    with open(input_path, encoding="utf-8") as f:
-        text = f.read()
-
-    chunks = re.split(special_pattern, text) if special_pattern else [text]
-
-    for chunk in chunks:
-        for match in re.finditer(PAT, chunk):
-            temp = tuple(bytes([b]) for b in match.group().encode("utf-8"))
-            pre_token_count[temp] += 1
-
-    pre_token_list = [PreToken(pre_token, count) for pre_token, count in pre_token_count.items()]
-
-    # init vocab with 256
-    vocab: dict[int, bytes] = {}
-    for i in range(256):
-        vocab[i] = bytes([i])
-    for token in special_tokens:
-        vocab[len(vocab)] = token.encode("utf-8")
-    merges: list[tuple[bytes, bytes]] = []
-
-    pair_locations: dict[tuple[bytes, ...], set] = defaultdict(set)
-    pair_count: dict[tuple[bytes, ...], int] = defaultdict(int)
-    heap = []
-    for pre_token in pre_token_list:
-        tokens = pre_token.tokens
-        count = pre_token.count
-        for i in range(len(tokens) - 1):
-            pair = (tokens[i], tokens[i + 1])
-            pair_count[pair] += count
-            pair_locations[pair].add(pre_token)
-
-    for pair, count in pair_count.items():
-        heapq.heappush(heap, (-count, ReversePair(pair)))
-
-    def merge_pair(pair):
-        merged_token = pair[0] + pair[1]
-        vocab[len(vocab)] = merged_token
-        merges.append(pair)
-        for pre_token in pair_locations[pair]:
-            count = pre_token.count
-            tokens = pre_token.tokens
-            # sliding window match
-            idx = 0
-            while idx < len(tokens) - 1:
-                if tokens[idx] != pair[0] or tokens[idx + 1] != pair[1]:
-                    idx += 1
-                    continue
-                # old
-                if idx > 0:
-                    temp = (tokens[idx - 1], tokens[idx])
-                    pair_count[temp] -= count
-                    heapq.heappush(heap, (-pair_count[temp], ReversePair(temp)))
-                if idx < len(tokens) - 2:
-                    temp = (tokens[idx + 1], tokens[idx + 2])
-                    pair_count[temp] -= count
-                    heapq.heappush(heap, (-pair_count[temp], ReversePair(temp)))
-                pair_count[pair] -= count
-                heapq.heappush(heap, (-pair_count[pair], ReversePair(pair)))
-
-                # new
-                tokens = tokens[:idx] + (merged_token,) + tokens[idx + 2 :]
-                if idx > 0:
-                    temp = (tokens[idx - 1], tokens[idx])
-                    pair_count[temp] += count
-                    heapq.heappush(heap, (-pair_count[temp], ReversePair(temp)))
-                    pair_locations[temp].add(pre_token)
-                if idx < len(tokens) - 1:
-                    temp = (tokens[idx], tokens[idx + 1])
-                    pair_count[temp] += count
-                    heapq.heappush(heap, (-pair_count[temp], ReversePair(temp)))
-                    pair_locations[temp].add(pre_token)
-                pre_token.tokens = tokens
-
-                idx += 1
-
-    while len(vocab) < vocab_size and heap:
-        reverse_count, reverse_pair = heapq.heappop(heap)
-        count = -reverse_count
-        pair = reverse_pair.pair
-        # invalid count, skip
-        if count != pair_count[pair] or count == 0:
-            continue
-        merge_pair(pair)
-
-    return (vocab, merges)
+    return train_bpe(input_path, vocab_size, special_tokens)
